@@ -11,30 +11,30 @@
 #import <AVFoundation/AVFoundation.h>
 
 @interface MNAVChapter : NSObject
-@property (nonatomic, copy) NSString *identifier;
+@property (nonatomic, copy, nullable) NSString *identifier;
 @property (nonatomic, assign) BOOL hidden;
-@property (nonatomic, copy) NSString *title;
-@property (nonatomic, copy) NSString *url;
+@property (nonatomic, copy, nullable) NSString *title;
+@property (nonatomic, copy, nullable) NSString *url;
 @property (nonatomic) CMTime time;
 @property (nonatomic) CMTime duration;
-@property (nonatomic) UIImage *artwork;
-- (BOOL)isEqualToChapter:(MNAVChapter *)aChapter;
-- (MNAVChapter *)initWithTime:(CMTime)time duration:(CMTime)duration;
-+ (MNAVChapter *)chapterWithTime:(CMTime)time duration:(CMTime)duration;
+@property (nonatomic, nullable) UIImage *artwork;
+- (BOOL)isEqualToChapter:(nullable MNAVChapter *)aChapter;
+- (nonnull MNAVChapter *)initWithTime:(CMTime)time duration:(CMTime)duration;
++ (nonnull MNAVChapter *)chapterWithTime:(CMTime)time duration:(CMTime)duration;
 @end
 
 @interface MNAVChapterReader : NSObject
-+ (NSArray *)chaptersFromAsset:(AVAsset *)asset;
++ (nonnull NSArray *)chaptersFromAsset:(nonnull AVAsset *)asset;
 @end
 
 # pragma mark - Internal
 
 @protocol MNAVChapterReader <NSObject>
-- (NSArray *)chaptersFromAsset:(AVAsset *)asset;
+- (nonnull NSArray *)chaptersFromAsset:(nonnull AVAsset *)asset;
 @end
 
 @interface MNAVChapterReaderMP3 : NSObject <MNAVChapterReader>
-- (MNAVChapter *)chapterFromFrame:(NSData *)data;
+- (nonnull MNAVChapter *)chapterFromFrame:(nonnull NSData *)data;
 @end
 
 @interface MNAVChapterReaderMP4 : NSObject <MNAVChapterReader>
