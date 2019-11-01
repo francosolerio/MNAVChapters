@@ -309,7 +309,7 @@ long btoi(char* bytes, long size, long offset);
         NSData *mimeTypeData = [self dataToTermInData:content];
         //        NSString *mimeType = [NSString stringWithUTF8String:mimeTypeData.bytes];
         
-        content = SUBDATA(content, mimeTypeData.length+ID3FrameEncoding+2, content.length-mimeTypeData.length-ID3FrameEncoding-2);
+        content = SUBDATA(content, mimeTypeData.length+ID3FrameEncoding, content.length-mimeTypeData.length-ID3FrameEncoding);
         
         NSData *imageDescriptionData;
         switch (textEncoding) {
@@ -325,8 +325,8 @@ long btoi(char* bytes, long size, long offset);
                 imageDescriptionData = [self dataToTermInData:content];
                 break;
         }
-                
-//        NSString *imageDescriptionText = [NSString stringWithUTF8String:imageDescriptionData.bytes];
+//        NSString *imageDescriptionText = [NSString stringWithCString:imageDescriptionData.bytes encoding:textEncoding];
+//        NSString *imageDescriptionText = [NSString stringWithCharacters:(unichar*)imageDescriptionData.bytes length:33]
         
         content = SUBDATA(content, imageDescriptionData.length, content.length-imageDescriptionData.length);
         
