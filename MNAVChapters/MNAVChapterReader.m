@@ -358,6 +358,9 @@ long btoi(char* bytes, long size, long offset);
         NSInteger encValue = btoi((char *)encData.bytes, encData.length, 0);
         NSInteger encoding = [self textEncoding:encValue];
         
+        if( ((loc +ID3FrameFrame + ID3FrameEncoding) + (size - ID3FrameEncoding)) > data.length ) {
+            return nil;
+        }
         NSData *content = SUBDATA(data, loc + ID3FrameFrame + ID3FrameEncoding, size - ID3FrameEncoding);
         NSUInteger index = [self dataToTermInData:content].length;
         NSData *url = SUBDATA(content, index, size - index - ID3FrameEncoding);
