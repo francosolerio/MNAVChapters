@@ -232,25 +232,74 @@ long btoi(char* bytes, long size, long offset);
 @implementation MNAVChapterReaderMP3
 
 - (NSArray *)chaptersFromAsset:(AVAsset *)asset {
-    NSArray *its = [asset metadataForFormat:MNAVMetadataFormatID3];
-    NSArray *items = [AVMetadataItem metadataItemsFromArray:its
-                                                    withKey:MNAVMetadataID3MetadataKeyChapter
-                                                   keySpace:MNAVMetadataFormatID3];
+    // Use the new async API but make it synchronous for backward compatibility
+    __block NSArray *result = nil;
+    __block BOOL completed = NO;
     
-    NSArray <NSString *>*chapterIdentifiers = [self tableOfContentsFromMetadata:its];
+    [asset loadMetadataForFormat:MNAVMetadataFormatID3 completionHandler:^(NSArray<AVMetadataItem *> * _Nullable metadata, NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"Error loading metadata for format: %@", error.localizedDescription);
+            result = @[];
+        } else {
+            NSArray *items = [AVMetadataItem metadataItemsFromArray:metadata
+                                                            withKey:MNAVMetadataID3MetadataKeyChapter
+                                                           keySpace:MNAVMetadataFormatID3];
+            
+            NSArray <NSString *>*chapterIdentifiers = [self tableOfContentsFromMetadata:metadata];
+            
+            NSMutableArray *chapters = [NSMutableArray new];
+            for (AVMetadataItem *item in items) {
+                MNAVChapter *chapter = [self chapterFromFrame:item.dataValue];
+                chapter.hidden = ![chapterIdentifiers containsObject:chapter.identifier];
+                
+                [chapters addObject:chapter];
+            }
+            
+            result = [chapters sortedArrayUsingComparator:
+                    ^NSComparisonResult(MNAVChapter *a, MNAVChapter *b) {
+                        return CMTimeCompare(a.time, b.time);
+                    }];
+        }
+        completed = YES;
+    }];
     
-    NSMutableArray *chapters = [NSMutableArray new];
-    for (AVMetadataItem *item in items) {
-        MNAVChapter *chapter = [self chapterFromFrame:item.dataValue];
-        chapter.hidden = ![chapterIdentifiers containsObject:chapter.identifier];
-        
-        [chapters addObject:chapter];
+    // Wait for completion (synchronous behavior)
+    while (!completed) {
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
     }
     
-    return [chapters sortedArrayUsingComparator:
-            ^NSComparisonResult(MNAVChapter *a, MNAVChapter *b) {
-                return CMTimeCompare(a.time, b.time);
-            }];
+    return result;
+}
+
+// New async method for modern usage
+- (void)chaptersFromAssetAsync:(AVAsset *)asset completionHandler:(void (^)(NSArray *chapters, NSError *error))completionHandler {
+    [asset loadMetadataForFormat:MNAVMetadataFormatID3 completionHandler:^(NSArray<AVMetadataItem *> * _Nullable metadata, NSError * _Nullable error) {
+        if (error) {
+            completionHandler(@[], error);
+            return;
+        }
+        
+        NSArray *items = [AVMetadataItem metadataItemsFromArray:metadata
+                                                        withKey:MNAVMetadataID3MetadataKeyChapter
+                                                       keySpace:MNAVMetadataFormatID3];
+        
+        NSArray <NSString *>*chapterIdentifiers = [self tableOfContentsFromMetadata:metadata];
+        
+        NSMutableArray *chapters = [NSMutableArray new];
+        for (AVMetadataItem *item in items) {
+            MNAVChapter *chapter = [self chapterFromFrame:item.dataValue];
+            chapter.hidden = ![chapterIdentifiers containsObject:chapter.identifier];
+            
+            [chapters addObject:chapter];
+        }
+        
+        NSArray *sortedChapters = [chapters sortedArrayUsingComparator:
+                ^NSComparisonResult(MNAVChapter *a, MNAVChapter *b) {
+                    return CMTimeCompare(a.time, b.time);
+                }];
+        
+        completionHandler(sortedChapters, nil);
+    }];
 }
 
 - (NSArray <NSString *>*)tableOfContentsFromMetadata:(NSArray *)metadata {
