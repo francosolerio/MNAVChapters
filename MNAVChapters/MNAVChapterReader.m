@@ -9,6 +9,8 @@
 #import "MNAVChapterReader.h"
 #import <UIKit/UIKit.h>
 
+#define _unused(x) ((void)(x))
+
 # pragma mark - MNAVChapterReader
 
 static NSString *const MNAVMetadataFormatApple = @"com.apple.itunes";
