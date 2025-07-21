@@ -75,19 +75,62 @@ static NSString *const MNAVMetadataFormatID3 = @"org.id3";
 @implementation MNAVChapterReaderMP4
 - (NSArray *)chaptersFromAsset:(AVAsset *)asset {
     NSArray *languages = [self languagesForAsset:asset];
-    NSArray *groups = [asset chapterMetadataGroupsBestMatchingPreferredLanguages:languages];
-    NSUInteger chapterCount = groups.count;
-    NSMutableArray *chapters = [[NSMutableArray alloc] initWithCapacity:chapterCount];
-    for (AVTimedMetadataGroup *group in groups) {
-        MNAVChapter *chapter = [MNAVChapter new];
-        chapter.title = [self titleFromGroup:group];
-        chapter.artwork = [self imageFromGroup:group];
-        chapter.url = [self urlFromGroup:group forTitle:chapter.title];
-        chapter.time = [self timeFromGroup:group];
-        chapter.duration = [self durationFromGroup:group];
-        [chapters addObject:chapter];
+    
+    // Use the new async API but make it synchronous for backward compatibility
+    __block NSArray *result = nil;
+    __block BOOL completed = NO;
+    
+    [asset loadChapterMetadataGroupsBestMatchingPreferredLanguages:languages completionHandler:^(NSArray<AVTimedMetadataGroup *> * _Nullable groups, NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"Error loading chapter metadata groups: %@", error.localizedDescription);
+            result = @[];
+        } else {
+            NSUInteger chapterCount = groups.count;
+            NSMutableArray *chapters = [[NSMutableArray alloc] initWithCapacity:chapterCount];
+            for (AVTimedMetadataGroup *group in groups) {
+                MNAVChapter *chapter = [MNAVChapter new];
+                chapter.title = [self titleFromGroup:group];
+                chapter.artwork = [self imageFromGroup:group];
+                chapter.url = [self urlFromGroup:group forTitle:chapter.title];
+                chapter.time = [self timeFromGroup:group];
+                chapter.duration = [self durationFromGroup:group];
+                [chapters addObject:chapter];
+            }
+            result = chapters;
+        }
+        completed = YES;
+    }];
+    
+    // Wait for completion (synchronous behavior)
+    while (!completed) {
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
     }
-    return chapters;
+    
+    return result;
+}
+
+// New async method for modern usage
+- (void)chaptersFromAssetAsync:(AVAsset *)asset completionHandler:(void (^)(NSArray *chapters, NSError *error))completionHandler {
+    NSArray *languages = [self languagesForAsset:asset];
+    [asset loadChapterMetadataGroupsBestMatchingPreferredLanguages:languages completionHandler:^(NSArray<AVTimedMetadataGroup *> * _Nullable groups, NSError * _Nullable error) {
+        if (error) {
+            completionHandler(@[], error);
+            return;
+        }
+        
+        NSUInteger chapterCount = groups.count;
+        NSMutableArray *chapters = [[NSMutableArray alloc] initWithCapacity:chapterCount];
+        for (AVTimedMetadataGroup *group in groups) {
+            MNAVChapter *chapter = [MNAVChapter new];
+            chapter.title = [self titleFromGroup:group];
+            chapter.artwork = [self imageFromGroup:group];
+            chapter.url = [self urlFromGroup:group forTitle:chapter.title];
+            chapter.time = [self timeFromGroup:group];
+            chapter.duration = [self durationFromGroup:group];
+            [chapters addObject:chapter];
+        }
+        completionHandler(chapters, nil);
+    }];
 }
 
 - (NSArray *)languagesForAsset:(AVAsset *)asset {
